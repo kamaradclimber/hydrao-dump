@@ -39,3 +39,82 @@ File
 ```
 
 They seem to be more or less constant around value 525.
+
+### Understanding 0x0012 field
+
+This field seems to be monotously increasing (a counter of some sort). The counter does not seem to be reset between two distinct showers.
+
+<details>
+<summary>First dump:</summary>
+
+```
+Value: 16020000
+Value: 16020000
+Value: 16020000
+Value: 16020000
+Value: 16020000
+Value: 17020100
+Value: 17020100
+Value: 17020100
+Value: 17020100
+Value: 17020100
+Value: 18020200
+Value: 18020200
+Value: 18020200
+Value: 18020200
+Value: 18020200
+Value: 19020300
+Value: 19020300
+```
+</details>
+
+<details>
+<summary>Second dump (nearly starting at the same value):</summary>
+
+```
+Value: 19020000
+Value: 19020000
+Value: 19020000
+Value: 19020000
+Value: 1a020100
+Value: 1a020100
+Value: 1a020100
+Value: 1a020100
+Value: 1a020100
+Value: 1b020200
+Value: 1b020200
+Value: 1b020200
+Value: 1b020200
+Value: 1b020200
+Value: 1b020200
+Value: 1c020300
+Value: 1c020300
+Value: 1c020300
+Value: 1c020300
+Value: 1c020300
+Value: 1d020400
+Value: 1d020400
+Value: 1d020400
+Value: 1d020400
+Value: 1d020400
+Value: 1e020500
+Value: 1e020500
+Value: 1e020500
+Value: 1e020500
+Value: 1e020500
+Value: 1f020600
+Value: 1f020600
+Value: 1f020600
+Value: 1f020600
+Value: 1f020600
+Value: 20020700
+Value: 20020700
+Value: 20020700
+Value: 20020700
+Value: 20020700
+Value: 21020800
+Value: 21020800
+```
+</details>
+
+On the 3rd dump (`80seconds_dump`), there are 42 values over ~80s. Values seems to be constant over ~5 consecutive records. It wouldindicate a counter constant over periods of 10s. This would be consistent with a counter of volume (~6 L/s). Although that would be weird to only send liters (instead of the amount really measured).
