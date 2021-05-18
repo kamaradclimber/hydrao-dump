@@ -20,6 +20,10 @@ I've looked at some bluetooth ATT/GATT documentation and started to annotate pac
 Some fields are shower head id, firmware version, ... we don't really care about this.
 Some fields seems more interested though because the app is constantly requesting them in loop (every second or so): 0x001a, 0x001c, 0x001e and 0x0012. The other fields are requested at one point but not continuously so they likely don't contain the metric we're interested in.
 
+### Some help from internet wisdom
+
+In french: https://community.jeedom.com/t/plugin-blea-hydrao/11622/36
+
 
 ### Understanding 0x001e field
 
@@ -118,3 +122,10 @@ Value: 21020800
 </details>
 
 On the 3rd dump (`80seconds_dump`), there are 42 values over ~80s. Values seems to be constant over ~5 consecutive records. It wouldindicate a counter constant over periods of 10s. This would be consistent with a counter of volume (~6 L/s). Although that would be weird to only send liters (instead of the amount really measured).
+
+Thanks to [https://community.jeedom.com/t/plugin-blea-hydrao/11622/36](the jeedom community) here is the real explaination for this field: 2 bytes for total volume of the last 400 showers, 2 bytes for the current shower volume.
+
+### Scripting
+
+With a bit of scripting we can short-circuit the long feedback loop "app on the phone" -> move the dump on computer -> analysis with wireshark.
+Use the `./receiver.py` script to make a dump from a computer.
