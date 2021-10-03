@@ -129,3 +129,4 @@ Thanks to [https://community.jeedom.com/t/plugin-blea-hydrao/11622/36](the jeedo
 
 With a bit of scripting we can short-circuit the long feedback loop "app on the phone" -> move the dump on computer -> analysis with wireshark.
 Use the `./receiver.py` script to make a dump from a computer.
+This script is slowly evolving to run as a service which sends data to a MQTT broker in the format expected by Home Assistant discovery
