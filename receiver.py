@@ -2,6 +2,7 @@ import time
 from argparse import ArgumentParser
 import os
 import json
+from datetime import datetime
 
 from bluepy import btle
 import paho.mqtt.client as mqtt
@@ -65,16 +66,72 @@ def mqtt_update_hydrao_sensors(mqtt_client, current_volume, total_volume, hydrao
     prefix_topic = f"homeassistant/sensor/hydrao_{hydrao.addr}"
     attributes_topic = f"{prefix_topic}/attributes"
     state_topic = f"{prefix_topic}/state"
+    print(f"Publish state to ${state_topic} with ${current_volume}")
     mqtt_client.publish(state_topic, current_volume)
     attributes = { "temperature": 42.42, "current_volume": current_volume, "last_400_showers": total_volume }
+    print(f"Publish attributes to ${attributes_topic} with ${attributes}")
     mqtt_client.publish(attributes_topic, json.dumps(attributes))
+
+
+class FakeService:
+    def __init__(self, characteristics):
+        self.characteristics = characteristics
+
+    def getCharacteristics(self, id):
+        return self.characteristics[id]
+
+class FakeCharacteristic:
+    def __init__(self, value):
+        self.value = value
+
+    def read(self):
+        return self.value
+
+class FakeVolumeCharacteristic(FakeCharacteristic):
+    def __init__(self, starting_total_volume):
+        self.starting_volume= starting_total_volume
+        self.start_time = datetime.now()
+
+    def volumes_to_hexstring(total_volume, current_volume):
+        # Take a tuple of (total_volume, current_shower_volume)
+        # Return a hexstring of int values as a series of bytes. Order is assumed little endian byte (but not sure)
+        # e.g., (217, 3) -> bytearray(b'\xd9\x03\x03\x00') -> b'\xd9\x03\x03\x00'
+        # ⚠ I'm not sure this conversion is the exact opposite of get_volumes method
+        part1 = total_volume.to_bytes(2, 'little')
+        part2 = current_volume.to_bytes(2, 'little')
+        return part1 + part2
+
+    def read(self):
+        current_volume = int((datetime.now() - self.start_time).total_seconds())
+        total_volume = self.starting_volume + current_volume
+        return FakeVolumeCharacteristic.volumes_to_hexstring(total_volume, current_volume)
+
+
+class FakeBTPeripheral:
+    def __init__(self, addr, characteristics):
+        self.addr = addr
+        self.service = FakeService(characteristics)
+
+    def addr(self):
+        return self.addr
+
+    def getServiceByUUID(self, ignore_uuid):
+        # always return the same service
+        return self.service
+
 
 def connect_and_read(mqtt_client=None):
     # get args
     args = get_args()
 
     print("Connecting...", flush=True)
-    hydrao = btle.Peripheral(args.mac_address)
+    if args.dry_run:
+        characteristics = {
+          "0000ca1c-0000-1000-8000-00805f9b34fb": [FakeVolumeCharacteristic(100)]
+        }
+        hydrao = FakeBTPeripheral(args.mac_address, characteristics)
+    else:
+        hydrao = btle.Peripheral(args.mac_address)
     print("Connected")
     # print_peripheral(hydrao)
     if mqtt_client is not None:
@@ -122,6 +179,7 @@ def get_volumes(volumes_string):
 def get_args():
     arg_parser = ArgumentParser(description="Hydrao shower head")
     arg_parser.add_argument('mac_address', help="MAC address of device to connect")
+    arg_parser.add_argument('--dry_run', help="Activate dry-run mode", action="store_const", const=True)
     args = arg_parser.parse_args()
     return args
 
