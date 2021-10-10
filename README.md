@@ -1,10 +1,38 @@
-This repo contains my notes around the protocol used by HYDRAO shower head.
+This repository contains a standalone script to connect an Hydrao shower head to Home Assistant via MQTT.
+
+== Requirements == 
+
+- Home Assistant and a MQTT server
+- a bluetooth adapter
+- the mac address of the hydrao shower head
+- python >= 3.7
+
+== How-to == 
+
+```
+pip install -r requirements.txt
+export MQTT_SERVER=1.2.3.4
+export MQTT_PORT=1883
+export MQTT_USER=my_user
+export MQTT_PASSWORD=abcdef
+python ./receiver.py shower_head_mac_address
+```
+
+I'm running this script as a long running systemd service on a raspberry 2 located next to the bathroom.
+
+== Credits ==
+
+Code has been built my copy-pasting multiple existing scripts found to interact with bluetooth devices. If you recognize your code, drop me a note, I'll credit you.
+
+== Additional files ==
+
+This repo also contains my notes around the protocol used by HYDRAO shower head.
 Sadly the only supported way to get data out of is to use the official app which transmit all data to the cloud and then provide some data through an API.
 Maybe it's possible to find info by looking at the packets exchanged between the shower head and the phone.
 
 I'm especially interested in water volume (or rate?) and temperature since those are the two values which are shown in the HYDRAO application.
 
-# First steps
+### First steps
 
 I enabled bluetooth data dump on my Android phone and then launched the HYDRAO application.
 After a few registration steps, data started to flow.
@@ -124,9 +152,3 @@ Value: 21020800
 On the 3rd dump (`80seconds_dump`), there are 42 values over ~80s. Values seems to be constant over ~5 consecutive records. It wouldindicate a counter constant over periods of 10s. This would be consistent with a counter of volume (~6 L/s). Although that would be weird to only send liters (instead of the amount really measured).
 
 Thanks to [https://community.jeedom.com/t/plugin-blea-hydrao/11622/36](the jeedom community) here is the real explaination for this field: 2 bytes for total volume of the last 400 showers, 2 bytes for the current shower volume.
-
-### Scripting
-
-With a bit of scripting we can short-circuit the long feedback loop "app on the phone" -> move the dump on computer -> analysis with wireshark.
-Use the `./receiver.py` script to make a dump from a computer.
-This script is slowly evolving to run as a service which sends data to a MQTT broker in the format expected by Home Assistant discovery
