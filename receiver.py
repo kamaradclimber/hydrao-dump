@@ -51,7 +51,7 @@ def mqtt_declare_hydrao_sensors(mqtt_client, hydrao, delete_first=False):
     state_topic to allow to update all sensors in one message.
     For now, topics are completely hardcoded
     """
-    prefix_topic = f"homeassistant/sensor/hydrao_{hydrao.addr}"
+    prefix_topic = f"homeassistant/sensor/hydrao_{hydrao.addr.replace(':', '_')}"
     config_topic = f"{prefix_topic}/config"
     attributes_topic = f"{prefix_topic}/attributes"
     state_topic = f"{prefix_topic}/state"
@@ -63,13 +63,13 @@ def mqtt_declare_hydrao_sensors(mqtt_client, hydrao, delete_first=False):
     mqtt_client.publish(config_topic, json.dumps(config))
 
 def mqtt_update_hydrao_sensors(mqtt_client, current_volume, total_volume, hydrao):
-    prefix_topic = f"homeassistant/sensor/hydrao_{hydrao.addr}"
+    prefix_topic = f"homeassistant/sensor/hydrao_{hydrao.addr.replace(':', '_')}"
     attributes_topic = f"{prefix_topic}/attributes"
     state_topic = f"{prefix_topic}/state"
-    print(f"Publish state to ${state_topic} with ${current_volume}")
+    print(f"Publish state to {state_topic} with {current_volume}")
     mqtt_client.publish(state_topic, current_volume)
     attributes = { "temperature": 42.42, "current_volume": current_volume, "last_400_showers": total_volume }
-    print(f"Publish attributes to ${attributes_topic} with ${attributes}")
+    print(f"Publish attributes to {attributes_topic} with {attributes}")
     mqtt_client.publish(attributes_topic, json.dumps(attributes))
 
 
