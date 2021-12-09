@@ -57,7 +57,20 @@ def mqtt_declare_hydrao_sensors(mqtt_client, hydrao, delete_first=False):
     config_topic = f"{prefix_topic}/config"
     attributes_topic = f"{prefix_topic}/attributes"
     state_topic = f"{prefix_topic}/state"
-    config = {"name": f"Hydrao shower head {hydrao.addr}", "state_class": "total_increasing", "device_class": "gas", "state_topic": state_topic, "unit_of_measurement": "L", "unique_id": hydrao.addr, "json_attributes_topic": attributes_topic }
+    config = {
+        "name": f"Hydrao shower head {hydrao.addr}",
+        "state_class": "total_increasing",
+        "device_class": "gas",
+        "state_topic": state_topic,
+        "unit_of_measurement": "L",
+        "expire_after": 60,
+        "device": {
+            "manufacturer": "hydrao",
+            "connections": [["mac", hydrao.addr]]
+        },
+        "unique_id": hydrao.addr,
+        "json_attributes_topic": attributes_topic
+    }
 
     if delete_first:
         mqtt_client.publish(config_topic, '')
