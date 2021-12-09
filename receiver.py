@@ -22,13 +22,15 @@ def print_peripheral(peripheral):
 
 def main():
     mqtt_client = build_mqtt_client()
+    backoff = 1
     while True:
         try:
             print("connect and read")
             connect_and_read(mqtt_client)
         except btle.BTLEDisconnectError as e:
-            print("Got disconnected, will retry", flush=True)
-            time.sleep(1)
+            print(f"Got disconnected, will retry in {backoff}s", flush=True)
+            time.sleep(backoff)
+            backoff = min(backoff + 1, 30)
 
 def build_mqtt_client():
     client = mqtt.Client()
