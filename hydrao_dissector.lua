@@ -98,6 +98,7 @@ function read_color(buffer, start)
 end
 
 function parse_color_thresholds(buffer, subtree)
+  -- TODO: add a new field per threshold and per color
   local start = buffer:len() - 16
   local volume_threshold1 = buffer(start,1):uint()
   local color_threshold1 = read_color(buffer, start+1)
@@ -128,7 +129,7 @@ end
 
 function parse_1e(buffer, subtree)
   local part1 = buffer(10,2):le_uint()
-  subtree:add(field_001e, part1)
+  subtree:add(field_001e, buffer(10, 2), part1)
   subtree:add(message_description, "volume " .. tostring(part1) .. "cL/min (?)")
   subtree:add(relevant_value, part1)
 end
@@ -140,15 +141,15 @@ function parse_1a(buffer, subtree)
   -- I wonder however if value is not reversed (I don't remember when it was hot and when it was cold but I think I started with cold 🤔) => should we read in big endian instead?
   local part1 = buffer(10,2):le_uint()
   local part2 = buffer(12,2):le_uint()
-  subtree:add(field_001a_1, part1)
-  subtree:add(field_001a_2, part2)
+  subtree:add(field_001a_1, buffer(10, 2), part1)
+  subtree:add(field_001a_2, buffer(12, 2), part2)
   subtree:add(message_description, "001a: " .. tostring(part1) .. "  " .. tostring(part2))
   subtree:add(relevant_value, part1)
 end
 
 function parse_hardware_version(buffer, subtree)
   local hardware_version_value = buffer(10, 2):le_uint()
-  subtree:add(hardware_version, hardware_version_value)
+  subtree:add(hardware_version, buffer(10, 2), hardware_version_value)
   subtree:add(message_description, "Shower head model version is " .. hardware_version_value)
 end
 
@@ -160,15 +161,15 @@ function parse_device_uuid(buffer, subtree)
     end
     if i < 2 then uuid_value = uuid_value .. "-" end
   end
-  subtree:add(device_uuid, uuid_value)
+  subtree:add(device_uuid, buffer(10, 12), uuid_value)
   subtree:add(message_description, "Device uuid is " .. uuid_value)
 end
 
 function parse_volumes_response(buffer, subtree)
   local total_volume_value = buffer(10,2):le_uint()
-  subtree:add(total_volume, total_volume_value)
+  subtree:add(total_volume, buffer(10, 2), total_volume_value)
   local current_shower_volume_value = buffer(12,2):le_uint()
-  subtree:add(current_shower_volume, current_shower_volume_value)
+  subtree:add(current_shower_volume, buffer(12, 2), current_shower_volume_value)
   subtree:add(message_description, "Current: " .. current_shower_volume_value .. "L" .. ", total " .. total_volume_value .. "L")
   subtree:add(relevant_value, current_shower_volume_value)
 end
