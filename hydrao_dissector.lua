@@ -15,9 +15,11 @@ handle_table[HANDLE_VOLUMES] = "volumes"
 HANDLE_UNKNOWN_1A = "0x001a"
 handle_table[HANDLE_UNKNOWN_1A] = "0x001a"
 HANDLE_UNKNOWN_1E = "0x001e"
-handle_table[HANDLE_UNKNOWN_1E] = "pseudo constant (?)"
+handle_table[HANDLE_UNKNOWN_1E] = "possible flow rate"
 HANDLE_HARDWARE_VERSION = "0x0032"
 handle_table[HANDLE_HARDWARE_VERSION] = "hardware version"
+HANDLE_COLOR_THRESHOLDS = "0x0020"
+handle_table[HANDLE_COLOR_THRESHOLDS] = "color thresholds"
 
 get_btaattribute_opcode = Field.new("btatt.opcode")
 local opcode_table = {}
@@ -26,12 +28,19 @@ OPCODE_RESPONSE = "0x0b"
 opcode_table[OPCODE_RESPONSE] = "response"
 opcode_table["0x08"] = "request characteristic info"
 opcode_table["0x09"] = "characteristic info response"
+OPCODE_WRITE_REQUEST = "0x12"
+opcode_table[OPCODE_WRITE_REQUEST] = "write request"
+OPCODE_WRITE_RESPONSE = "0x13"
+opcode_table[OPCODE_WRITE_RESPONSE] = "write response"
 
 get_btattribute_firmware_version_string = Field.new("btatt.firmware_revision_string")
 
--- our new protocol fields
+-- our new protocol fields, we start with some common fields applied to all packets and then specialized ones depending on type of packets
 message_type = ProtoField.string("hydrao.message_type", "message_type", base.UNICODE, "Message type (unknown if not identified yet)")
 message_description = ProtoField.string("hydrao.message_description", "message_description", base.UNICODE)
+-- this field is used to ease graphing of value within wireshark
+relevant_value = ProtoField.int32("hydrao.relevant_value", "relevant_value", base.DEC)
+
 total_volume = ProtoField.int32("hydrao.total_volume", "total_volume", base.DEC)
 current_shower_volume = ProtoField.int32("hydrao.current_shower_volume", "current_shower_volume", base.DEC)
 hardware_version = ProtoField.int32("hydrao.hardware_version", "hardware_version", base.DEC)
@@ -45,6 +54,7 @@ field_001e = ProtoField.int32("hydrao.field_001e", "field_001e", base.DEC)
 hydrao_protocol.fields = {
   message_type,
   message_description,
+  relevant_value,
   total_volume,
   current_shower_volume,
   hardware_version,
@@ -55,6 +65,61 @@ hydrao_protocol.fields = {
   field_001e
 }
 
+function Color(_r, _g, _b)
+  return function(fn) return fn(_r,_g,_b) end
+end
+function r(_r, _g, _b) return _r end
+function g(_r, _g, _b) return _g end
+function b(_r, _g, _b) return _b end
+function eq(c1, c2)
+  return c1(r) == c2(r) and c1(g) == c2(g) and c1(b) == c2(b) end
+
+function read_color(buffer, start)
+  local red = buffer(start,1):uint()
+  local green = buffer(start+1,1):uint()
+  local blue = buffer(start+2,1):uint()
+  if eq(Color(red, green, blue), Color(0, 0, 0)) then
+    return "off"
+  elseif eq(Color(red, green, blue), Color(255, 0, 0)) then
+    return "red"
+  elseif eq(Color(red, green, blue), Color(0, 255, 0)) then
+    return "green"
+  elseif eq(Color(red, green, blue), Color(0, 0, 255)) then
+    return "blue"
+  elseif eq(Color(red, green, blue), Color(76, 221, 241)) then
+    return "lightblue"
+  elseif eq(Color(red, green, blue), Color(255, 0, 255)) then
+    return "purple"
+  elseif eq(Color(red, green, blue), Color(103, 255, 17)) then
+    return "lightgreen"
+  else
+    return string.format("(%i,%i,%i)", red, green, blue)
+  end
+end
+
+function parse_color_thresholds(buffer, subtree)
+  local start = buffer:len() - 16
+  local volume_threshold1 = buffer(start,1):uint()
+  local color_threshold1 = read_color(buffer, start+1)
+  local volume_threshold2 = buffer(start+4,1):uint()
+  local color_threshold2 = read_color(buffer, start+5)
+  local volume_threshold3 = buffer(start+8,1):uint()
+  local color_threshold3 = read_color(buffer, start+9)
+  local volume_threshold4 = buffer(start+12,1):uint()
+  local color_threshold4 = read_color(buffer, start+13)
+  subtree:add(message_description, string.format(
+    "%iL %s, %iL %s, %iL %s, %iL %s",
+    volume_threshold1,
+    color_threshold1,
+    volume_threshold2,
+    color_threshold2,
+    volume_threshold3,
+    color_threshold3,
+    volume_threshold4,
+    color_threshold4
+  ))
+end
+
 function parse_firmware_revision_string(buffer, subtree)
   local firmware_revision_string_value = tostring(get_btattribute_firmware_version_string())
   subtree:add(firmware_revision_string, firmware_revision_string_value)
@@ -64,18 +129,21 @@ end
 function parse_1e(buffer, subtree)
   local part1 = buffer(10,2):le_uint()
   subtree:add(field_001e, part1)
-  subtree:add(message_description, "001e: " .. tostring(part1))
+  subtree:add(message_description, "volume " .. tostring(part1) .. "cL/min (?)")
+  subtree:add(relevant_value, part1)
 end
 
 function parse_1a(buffer, subtree)
   -- this field visibly contains 2 numbers:
-  -- 1st one is obviously incrementing but has some small drops
-  -- 2nd one increments monotonically with large plateaux
+  -- 1st one is likely temperature (as we can see on new_shower_head_dump.log => a long plateau of high temperature, then a low plateau and then high again starting at 35L which is the exact time I put hot again)
+  -- 2nd one 🤷
+  -- I wonder however if value is not reversed (I don't remember when it was hot and when it was cold but I think I started with cold 🤔) => should we read in big endian instead?
   local part1 = buffer(10,2):le_uint()
   local part2 = buffer(12,2):le_uint()
   subtree:add(field_001a_1, part1)
   subtree:add(field_001a_2, part2)
   subtree:add(message_description, "001a: " .. tostring(part1) .. "  " .. tostring(part2))
+  subtree:add(relevant_value, part1)
 end
 
 function parse_hardware_version(buffer, subtree)
@@ -102,6 +170,7 @@ function parse_volumes_response(buffer, subtree)
   local current_shower_volume_value = buffer(12,2):le_uint()
   subtree:add(current_shower_volume, current_shower_volume_value)
   subtree:add(message_description, "Current: " .. current_shower_volume_value .. "L" .. ", total " .. total_volume_value .. "L")
+  subtree:add(relevant_value, current_shower_volume_value)
 end
 
 function hydrao_protocol.dissector(buffer, pinfo, tree)
@@ -135,6 +204,8 @@ function hydrao_protocol.dissector(buffer, pinfo, tree)
     parse_1a(buffer, subtree)
   elseif btattribute_handle == HANDLE_UNKNOWN_1E and opcode == OPCODE_RESPONSE then
     parse_1e(buffer, subtree)
+  elseif btattribute_handle == HANDLE_COLOR_THRESHOLDS and (opcode == OPCODE_WRITE_REQUEST or opcode == OPCODE_RESPONSE) then
+    parse_color_thresholds(buffer, subtree)
   end
 
 end
