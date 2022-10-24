@@ -46,8 +46,8 @@ current_shower_volume = ProtoField.int32("hydrao.current_shower_volume", "curren
 hardware_version = ProtoField.int32("hydrao.hardware_version", "hardware_version", base.DEC)
 device_uuid = ProtoField.string("hydrao.device_uuid", "device_uuid", base.UNICODE)
 firmware_revision_string = ProtoField.string("hydrao.firmware_revision", "firmware_revision", base.UNICODE)
-field_001a_1 = ProtoField.int32("hydrao.field_001a_1", "field_001a_1", base.DEC)
-field_001a_2 = ProtoField.int32("hydrao.field_001a_2", "field_001a_2", base.DEC)
+temperature_field = ProtoField.int32("hydrao.temperature", "field_001a_1", base.DEC)
+average_temperature_field = ProtoField.int32("hydrao.average_temperature", "field_001a_2", base.DEC)
 field_001e = ProtoField.int32("hydrao.field_001e", "field_001e", base.DEC)
 
 
@@ -60,8 +60,8 @@ hydrao_protocol.fields = {
   hardware_version,
   device_uuid,
   firmware_revision_string,
-  field_001a_1,
-  field_001a_2,
+  temperature_field,
+  average_temperature_field,
   field_001e
 }
 
@@ -141,10 +141,10 @@ function parse_1a(buffer, subtree)
   -- I wonder however if value is not reversed (I don't remember when it was hot and when it was cold but I think I started with cold 🤔) => should we read in big endian instead?
   local part1 = buffer(10,2):le_uint()
   local part2 = buffer(12,2):le_uint()
-  subtree:add(field_001a_1, buffer(10, 2), part1)
-  subtree:add(field_001a_2, buffer(12, 2), part2)
-  subtree:add(message_description, "001a: " .. tostring(part1) .. "  " .. tostring(part2))
-  subtree:add(relevant_value, part1)
+  subtree:add(temperature_field, buffer(10, 2), part1 / 100)
+  subtree:add(average_temperature_field, buffer(12, 2), part2 / 100)
+  subtree:add(message_description, "Temperature: " .. tostring(part1/100) .. "°C, average:" .. tostring(part2/100) .. "°C")
+  subtree:add(relevant_value, part1/100)
 end
 
 function parse_hardware_version(buffer, subtree)
