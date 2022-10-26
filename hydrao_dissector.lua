@@ -12,10 +12,10 @@ HANDLE_DEVICE_UUID = "0x0010"
 handle_table[HANDLE_DEVICE_UUID] = "device uuid"
 HANDLE_VOLUMES = "0x0012"
 handle_table[HANDLE_VOLUMES] = "volumes"
-HANDLE_UNKNOWN_1A = "0x001a"
-handle_table[HANDLE_UNKNOWN_1A] = "0x001a"
-HANDLE_UNKNOWN_1E = "0x001e"
-handle_table[HANDLE_UNKNOWN_1E] = "possible flow rate"
+HANDLE_TEMPERATURE = "0x001a"
+handle_table[HANDLE_TEMPERATURE] = "temperature"
+HANDLE_FLOW = "0x001e"
+handle_table[HANDLE_FLOW] = "water flow"
 HANDLE_HARDWARE_VERSION = "0x0032"
 handle_table[HANDLE_HARDWARE_VERSION] = "hardware version"
 HANDLE_COLOR_THRESHOLDS = "0x0020"
@@ -46,9 +46,9 @@ current_shower_volume = ProtoField.int32("hydrao.current_shower_volume", "curren
 hardware_version = ProtoField.int32("hydrao.hardware_version", "hardware_version", base.DEC)
 device_uuid = ProtoField.string("hydrao.device_uuid", "device_uuid", base.UNICODE)
 firmware_revision_string = ProtoField.string("hydrao.firmware_revision", "firmware_revision", base.UNICODE)
-temperature_field = ProtoField.int32("hydrao.temperature", "field_001a_1", base.DEC)
-average_temperature_field = ProtoField.int32("hydrao.average_temperature", "field_001a_2", base.DEC)
-field_001e = ProtoField.int32("hydrao.field_001e", "field_001e", base.DEC)
+temperature_field = ProtoField.int32("hydrao.temperature", "temperature", base.DEC)
+average_temperature_field = ProtoField.int32("hydrao.average_temperature", "average_temperature", base.DEC)
+flow_field = ProtoField.int32("hydrao.flow", "flow", base.DEC)
 
 
 hydrao_protocol.fields = {
@@ -62,7 +62,7 @@ hydrao_protocol.fields = {
   firmware_revision_string,
   temperature_field,
   average_temperature_field,
-  field_001e
+  flow_field
 }
 
 function Color(_r, _g, _b)
@@ -127,14 +127,14 @@ function parse_firmware_revision_string(buffer, subtree)
   subtree:add(message_description, "Firmware revision is " .. firmware_revision_string_value)
 end
 
-function parse_1e(buffer, subtree)
-  local part1 = buffer(10,2):le_uint()
-  subtree:add(field_001e, buffer(10, 2), part1)
-  subtree:add(message_description, "volume " .. tostring(part1) .. "cL/min (?)")
-  subtree:add(relevant_value, part1)
+function parse_flow(buffer, subtree)
+  local flow = buffer(10,2):le_uint() / 100
+  subtree:add(flow_field, buffer(10, 2), flow)
+  subtree:add(message_description, "flow: " .. tostring(flow) .. "L/min")
+  subtree:add(relevant_value, flow)
 end
 
-function parse_1a(buffer, subtree)
+function parse_temperature(buffer, subtree)
   -- this field visibly contains 2 numbers:
   -- 1st one is likely temperature (as we can see on new_shower_head_dump.log => a long plateau of high temperature, then a low plateau and then high again starting at 35L which is the exact time I put hot again)
   -- 2nd one 🤷
@@ -201,10 +201,10 @@ function hydrao_protocol.dissector(buffer, pinfo, tree)
     parse_hardware_version(buffer, subtree)
   elseif btattribute_handle == HANDLE_FIRMWARE_REVISION and opcode == OPCODE_RESPONSE then
     parse_firmware_revision_string(buffer, subtree)
-  elseif btattribute_handle == HANDLE_UNKNOWN_1A and opcode == OPCODE_RESPONSE then
-    parse_1a(buffer, subtree)
-  elseif btattribute_handle == HANDLE_UNKNOWN_1E and opcode == OPCODE_RESPONSE then
-    parse_1e(buffer, subtree)
+  elseif btattribute_handle == HANDLE_TEMPERATURE and opcode == OPCODE_RESPONSE then
+    parse_temperature(buffer, subtree)
+  elseif btattribute_handle == HANDLE_FLOW and opcode == OPCODE_RESPONSE then
+    parse_flow(buffer, subtree)
   elseif btattribute_handle == HANDLE_COLOR_THRESHOLDS and (opcode == OPCODE_WRITE_REQUEST or opcode == OPCODE_RESPONSE) then
     parse_color_thresholds(buffer, subtree)
   end
