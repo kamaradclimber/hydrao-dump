@@ -1,6 +1,8 @@
 This repository contains a standalone script to connect an Hydrao shower head to Home Assistant via MQTT.
 It also contains a work-in-progress wireshark dissector for the hydrao protocol.
 
+💡 Adizanni developed an [integration](https://github.com/adizanni/hydrao) for Home Assistant which should be usable.
+
 ## Requirements
 
 - Home Assistant and a MQTT server
